@@ -29,7 +29,6 @@ class Packet(object):
 
 	def makeChecksum(self, size, buf):
 		sumtp = 0
-		#sumtp += (size &15) + ((size >> 4) &15) + ((size >> 8) &15) + 	
 		ptr = 0
 		while(ptr < len(buf)):
 			sumtp += ord(buf[ptr])
@@ -125,8 +124,8 @@ try:
 		data = f.read(BUFFER_SIZE)
 		manager = SenderWindowManager(SEQUENCE_LENGTH, TIMER)
 		pack = Packet(SEQUENCE_LENGTH, BUFFER_SIZE)
-		while(data  or manager.existBuffer()):
-			while(manager.needMorePacket() and data):
+		while(data or manager.existBuffer()):
+			while(data and manager.needMorePacket()):
 				packet, size = pack.pack(data)
 				sock.sendto(packet, server)
 				manager.pushPacket(packet)
