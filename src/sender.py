@@ -5,11 +5,12 @@ from time import time
 import struct
 
 class Packet(object):
-	def __init__(self, crcLen, bufSize):
-		self.crcLength = crcLen
-		self.crcSize = pow(2, self.crcLength)
-		self.formatStr = "!I" + str(self.crcLength) + "s" + str(bufSize) + "s"
-		self.crcNumber = 0
+	def __init__(self, sequenceLen, bufSize):
+		self.sequenceLength = sequenceLen
+		self.sequenceSize = pow(2, self.sequenceLength)
+		self.bufferSize = bufSize
+		self.formatStr = "!I" + str(self.sequenceLength) + "s" + str(bufSize) + "ss"
+		self.sequenceNumber = 0
 
 	def decimalToBinary(self, decimalNumber):
 		if(decimalNumber < 2):
@@ -18,44 +19,55 @@ class Packet(object):
 
 	def pack(self, buf):
 		size = len(buf)
-		crcString = self.decimalToBinary(self.crcNumber)
-		if len(crcString) < self.crcLength:
-			crcString = ('0' * (self.crcLength-len(crcString))) + crcString
-		p = struct.pack(self.formatStr, size, crcString, buf)
-		self.crcNumber = (self.crcNumber +1) % self.crcSize
+		sequenceString = self.decimalToBinary(self.sequenceNumber)
+		if len(sequenceString) < self.sequenceLength:
+			sequenceString = ('0' * (self.sequenceLength-len(sequenceString))) + sequenceString
+		checksum = self.makeChecksum(size, sequenceString + buf)
+		p = struct.pack(self.formatStr, size, sequenceString, buf, checksum)
+		self.sequenceNumber = (self.sequenceNumber +1) % self.sequenceSize
 		return p, size
 
+	def makeChecksum(self, size, buf):
+		sumtp = 0
+		#sumtp += (size &15) + ((size >> 4) &15) + ((size >> 8) &15) + 	
+		ptr = 0
+		while(ptr < len(buf)):
+			sumtp += ord(buf[ptr])
+			ptr += 1
+		checksum = struct.unpack("ssss", struct.pack("!I", sumtp))
+		return checksum[3]
+
 class SenderWindowManager(object):
-	def __init__(self, crcLength, time):
-		self.crcSize = pow(2, crcLength)
-		self.windowSize = self.crcSize /2
-		self.crcArray = [False] * self.crcSize
+	def __init__(self, sequenceLength, time):
+		self.sequenceSize = pow(2, sequenceLength)
+		self.windowSize = self.sequenceSize /2
+		self.sequenceArray = [False] * self.sequenceSize
 		self.packetArray = [ ]
 		self.timerArray = [ ]
 		self.windowStart = 0
 		self.windowEnd = self.windowSize
-		self.lastCRC = 0
+		self.lastSequence = 0
 		self.timer = time
 
 	def needMorePacket(self):
-		return self.lastCRC != self.windowEnd
+		return self.lastSequence != self.windowEnd
 
 	def pushPacket(self, pack):
 		self.packetArray.append(pack)
 		self.timerArray.append(time())
-		self.lastCRC = (self.lastCRC +1) % self.crcSize
+		self.lastSequence = (self.lastSequence +1) % self.sequenceSize
 
 	def moveWindow(self):
-		while(self.crcArray[self.windowStart]):
-			self.windowStart = (self.windowStart +1) % self.crcSize
-			self.windowEnd = (self.windowEnd +1) % self.crcSize
-			self.crcArray[self.windowEnd] = False
+		while(self.sequenceArray[self.windowStart]):
+			self.windowStart = (self.windowStart +1) % self.sequenceSize
+			self.windowEnd = (self.windowEnd +1) % self.sequenceSize
+			self.sequenceArray[self.windowEnd] = False
 			self.packetArray.pop(0)
 			self.timerArray.pop(0)
 		
 	def receiveAck(self, ack):
 		ackNumber = self.binaryToDecimal(ack)
-		self.crcArray[ackNumber] = True
+		self.sequenceArray[ackNumber] = True
 
 	def binaryToDecimal(self, binaryString):
 		return int(binaryString, 2)
@@ -76,7 +88,7 @@ class SenderWindowManager(object):
 		return len(self.packetArray) != 0
 
 BUFFER_SIZE = 1024
-CRC_LENGTH = 4
+SEQUENCE_LENGTH = 4
 TIMER = 1
 CHECK_TERM = 0.01
 
@@ -111,8 +123,8 @@ try:
 		transferred = 0
 		sock.settimeout(CHECK_TERM)
 		data = f.read(BUFFER_SIZE)
-		manager = SenderWindowManager(CRC_LENGTH, TIMER)
-		pack = Packet(CRC_LENGTH, BUFFER_SIZE)
+		manager = SenderWindowManager(SEQUENCE_LENGTH, TIMER)
+		pack = Packet(SEQUENCE_LENGTH, BUFFER_SIZE)
 		while(data  or manager.existBuffer()):
 			while(manager.needMorePacket() and data):
 				packet, size = pack.pack(data)
@@ -124,7 +136,7 @@ try:
 				round(float(transferred)/fileSize*100, 2), "%"
 				data = f.read(BUFFER_SIZE)
 			try:
-				ack, addr = sock.recvfrom(CRC_LENGTH)
+				ack, addr = sock.recvfrom(SEQUENCE_LENGTH)
 				manager.receiveAck(ack)
 				manager.moveWindow()				
 			except socket.timeout as e:
