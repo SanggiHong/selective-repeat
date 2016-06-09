@@ -86,10 +86,10 @@ class SenderWindowManager(object):
 	def existBuffer(self):
 		return len(self.packetArray) != 0
 
-BUFFER_SIZE = 1024
-SEQUENCE_LENGTH = 4
-TIMER = 1
-CHECK_TERM = 0.01
+BUFFER_SIZE = 1024 		#bits
+SEQUENCE_LENGTH = 4 	#bits
+TIMER = 1 				#seconds
+CHECK_TERM = 0.01 		#seconds
 
 if __name__ != "__main__":
 	sys.exit()
