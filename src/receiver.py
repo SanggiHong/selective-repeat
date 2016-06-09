@@ -89,6 +89,9 @@ UDP_PORT = 5005
 BUFFER_SIZE = 1024
 SEQUENCE_LENGTH = 4
 
+if __name != "__main__":
+	sys.exit()
+
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
 
