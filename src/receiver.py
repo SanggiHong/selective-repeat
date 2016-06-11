@@ -3,6 +3,9 @@ import socket
 import sys
 import struct
 from time import time
+import random
+
+TEST_MODE = True
 
 class Packet(object):
 	def __init__(self, sequenceLen, bufSize):
@@ -20,6 +23,9 @@ class Packet(object):
 		#buffer = result[2]
 		#checksum = result[3]
 		check = self.isValidChecksum(result[1] + result[2], result[3])
+		if(TEST_MODE):
+			if(random.randrange(0,50) == 1):
+				check = False
 		return result[1], result[0], result[2], check
 
 	def isValidChecksum(self, buf, checksum):
@@ -43,9 +49,13 @@ class ReceiverWindowManager(object):
 
 	def receivePacket(self, sequence, size, buf):
 		sequenceNumber = self.binaryToDecimal(sequence)
+		if(TEST_MODE):
+			print "Receive Packet; Sequence Number", sequenceNumber
 		if(self.isValidSequenceNumber(sequenceNumber)):
 			index = self.sequenceToWindowIndex(sequenceNumber)
 			if(self.sequenceArray[sequenceNumber] is False):
+				if(TEST_MODE):
+					print "is Accepted WindowNumber is", index
 				self.bufferArray[index] = buf
 				self.sizeArray[index] = size
 				self.sequenceArray[sequenceNumber] = True
