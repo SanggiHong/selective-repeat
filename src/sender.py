@@ -4,6 +4,8 @@ import sys
 from time import time
 import struct
 
+TEST_MODE = True
+
 class Packet(object):
 	def __init__(self, sequenceLen, bufSize):
 		self.sequenceLength = sequenceLen
@@ -18,6 +20,8 @@ class Packet(object):
 		return self.decimalToBinary(decimalNumber /2) + str(decimalNumber%2)
 
 	def pack(self, buf):
+		if(TEST_MODE):
+			print "SequenceNumber", self.sequenceNumber, "is Packed"
 		size = len(buf)
 		sequenceString = self.decimalToBinary(self.sequenceNumber)
 		if len(sequenceString) < self.sequenceLength:
@@ -66,6 +70,8 @@ class SenderWindowManager(object):
 		
 	def receiveAck(self, ack):
 		ackNumber = self.binaryToDecimal(ack)
+		if(TEST_MODE):
+			print "Receive Ack Number", ackNumber
 		self.sequenceArray[ackNumber] = True
 
 	def binaryToDecimal(self, binaryString):
@@ -88,7 +94,7 @@ class SenderWindowManager(object):
 
 BUFFER_SIZE = 1024 		#bits
 SEQUENCE_LENGTH = 4 	#bits
-TIMER = 1 				#seconds
+TIMER = 2				#seconds
 CHECK_TERM = 0.01 		#seconds
 
 if __name__ != "__main__":
